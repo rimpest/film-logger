@@ -78,9 +78,12 @@ NuxtHub automatically creates a local SQLite-backed D1 binding and runs the migr
 ```bash
 bun run test               # unit tests — fast, no Nuxt boot
 bun run test:integration   # full happy-path against a real Nuxt server + local D1
+bun run e2e                # Playwright: real Chromium, full flow, captures screenshots
 ```
 
 The integration test exercises: register → me → camera CRUD → lens CRUD with camera tagging → roll create → idempotent shot logging → lab create → mark finished → development drop-off → derived status check → unauthenticated rejection → logout.
+
+The E2E test (`tests/e2e/full-flow.spec.ts`) drives a real Chromium through the same flow, plus the actual UI: clicking through register / camera / lens / roll / shot / mark-finished / lab / send-to-lab / log out. Screenshots from each step are committed under `tests/e2e/screenshots/` so reviewers can see the rendered app without running it. The test waits on Vue hydration before every interaction (the dev server lazy-loads chunks, and `fill()` before hydration silently no-ops on the v-model).
 
 ## Deploying
 

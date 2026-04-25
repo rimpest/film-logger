@@ -25,3 +25,8 @@ logs
 
 # NuxtHub local data
 .hub
+
+# Playwright
+tests/e2e/.output
+tests/e2e/test-results
+playwright-report/

@@ -12,6 +12,20 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
+  // @nuxt/ui pulls in @nuxt/fonts which probes external CDNs at boot. Restrict
+  // to the local cache so the dev server doesn't hang for ~30s on each restart
+  // when those CDNs are blocked or slow.
+  fonts: {
+    providers: {
+      google: false,
+      googleicons: false,
+      bunny: false,
+      fontshare: false,
+      fontsource: false,
+      adobe: false,
+    },
+  },
+
   hub: {
     database: true,
   },
@@ -20,6 +34,12 @@ export default defineNuxtConfig({
     // session secret should come from NUXT_SESSION_PASSWORD env var (>= 32 chars)
     session: {
       maxAge: 60 * 60 * 24 * 30, // 30 days
+      cookie: {
+        // In dev / E2E we serve over plain HTTP, so Secure cookies would be
+        // silently dropped by the browser. Production builds get the default
+        // (secure: true). NUXT_SESSION_COOKIE_SECURE can override either way.
+        secure: process.env.NODE_ENV === 'production',
+      },
     },
     public: {
       appName: 'Film Logger',
