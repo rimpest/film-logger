@@ -1,11 +1,9 @@
 <script setup lang="ts">
-import type { Lab } from '~~/types/models'
-
 const route = useRoute()
 const api = useApi()
 const rollId = Number(route.params.id)
 
-const { data: labs } = await useFetch<Lab[]>('/api/labs', { default: () => [] })
+const { data: labs } = useCachedLabs()
 
 const labId = ref<number | null>(null) // null = self-developed
 const droppedOff = ref(new Date().toISOString().slice(0, 10))

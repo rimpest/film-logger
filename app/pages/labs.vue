@@ -2,7 +2,7 @@
 import type { Lab } from '~~/types/models'
 
 const api = useApi()
-const { data: labs, refresh } = await useFetch<Lab[]>('/api/labs', { default: () => [] })
+const { data: labs, refresh } = useCachedLabs()
 
 const editing = ref<Partial<Lab> & { id?: number } | null>(null)
 

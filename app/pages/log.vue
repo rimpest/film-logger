@@ -1,30 +1,35 @@
 <script setup lang="ts">
-import type { Camera, Lens, RollListItem } from '~~/types/models'
+import type { Lens } from '~~/types/models'
 
 const api = useApi()
 const toast = useToast()
 const route = useRoute()
 const { online, queue, enqueueShot, flush } = useOfflineQueue()
 
-const { data: rolls } = await useFetch<RollListItem[]>('/api/rolls', {
-  query: { status: 'loaded' },
-  default: () => [],
-})
-const { data: cameras } = await useFetch<Camera[]>('/api/cameras', { default: () => [] })
-const { data: allLenses } = await useFetch<Lens[]>('/api/lenses', { default: () => [] })
+// Cache-first: even with no signal we render the loaded rolls / cameras / lenses
+// from IndexedDB. This is the page that has to work offline.
+const { data: rolls } = useCachedRolls('loaded')
+const { data: cameras } = useCachedCameras()
+const { data: allLenses } = useCachedLenses()
 
 // Pick a roll: ?roll= takes priority, else the most recently loaded.
-const initialRollId = Number(route.query.roll) || rolls.value?.[0]?.id || null
-const selectedRollId = ref<number | null>(initialRollId)
+const selectedRollId = ref<number | null>(Number(route.query.roll) || null)
+watchEffect(() => {
+  if (selectedRollId.value == null && rolls.value.length) {
+    selectedRollId.value = rolls.value[0].id
+  }
+})
 const selectedRoll = computed(() =>
-  rolls.value?.find(r => r.id === selectedRollId.value) ?? null,
+  rolls.value.find(r => r.id === selectedRollId.value) ?? null,
 )
 const cameraId = computed(() => selectedRoll.value?.camera_id ?? null)
 
-// Lens picker filters to lenses tagged for this camera, falling back to all.
+// Lens picker filters to lenses tagged for this camera. Online: uses the
+// server-side camera_lenses join. Offline: falls back to "all lenses" since we
+// don't mirror the join table to IndexedDB in MVP.
 const lensesForCamera = ref<Lens[]>([])
 async function reloadLensFilter() {
-  if (!cameraId.value) {
+  if (!cameraId.value || !online.value) {
     lensesForCamera.value = []
     return
   }
@@ -36,11 +41,11 @@ async function reloadLensFilter() {
     lensesForCamera.value = []
   }
 }
-watch(cameraId, () => { void reloadLensFilter() }, { immediate: true })
+watch([cameraId, online], () => { void reloadLensFilter() }, { immediate: true })
 
 const showAllLenses = ref(false)
 const visibleLenses = computed(() => {
-  if (showAllLenses.value || !lensesForCamera.value.length) return allLenses.value ?? []
+  if (showAllLenses.value || !lensesForCamera.value.length) return allLenses.value
   return lensesForCamera.value
 })
 

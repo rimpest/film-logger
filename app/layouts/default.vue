@@ -13,6 +13,9 @@ const items = computed(() => [
 async function logout() {
   await $fetch('/api/auth/logout', { method: 'POST' })
   await clear()
+  // Wipe the local cache so a different user signing in doesn't see the
+  // previous account's rolls/cameras/etc.
+  if (import.meta.client) await localStore.clear()
   await navigateTo('/login')
 }
 </script>

@@ -1,17 +1,23 @@
+import { localStore } from './localStore'
+
 /**
  * Offline write queue for shot logging.
  *
  * Strategy:
- *   - Every "create shot" mutation goes through `enqueueShot()`. The shot is
- *     given a client-side UUID and written to localStorage immediately, so it
- *     survives reload.
- *   - On `online` events (and on app start), `flush()` replays each queued
- *     write to `/api/shots`. Server is idempotent on `(user_id, client_id)`,
+ *   - Every "create shot" mutation calls `enqueueShot()`. The payload is
+ *     written to localStorage (durable across reloads) AND inserted into
+ *     IndexedDB as a `_pending` shot row, so the UI sees it immediately on
+ *     subsequent reads — even before the server has acknowledged it.
+ *   - On `online` events and on app start, `flush()` replays each queued
+ *     write to `/api/shots`. The server is idempotent on `(user_id, client_id)`
  *     so a double-replay is safe.
- *   - On success the queued entry is removed; on transient failure it stays.
+ *   - On success: remove from queue. The next read of the roll detail will
+ *     replace the pending row with the server-confirmed one (matched by
+ *     `client_id` in `localStore.replaceShotsForRoll`).
  *
- * This is intentionally minimal — full bidirectional sync of edits/deletes is
- * v2 work. The MVP guarantee: if you log a shot offline, you don't lose it.
+ * This is intentionally minimal — full bidirectional sync of edits/deletes
+ * is v2 work. The MVP guarantee: if you log a shot offline, it's visible
+ * immediately AND it doesn't get lost.
  */
 const QUEUE_KEY = 'film-logger:shot-queue:v1'
 
@@ -60,6 +66,11 @@ export function useOfflineQueue() {
     const next = [...read(), entry]
     write(next)
     queue.value = next
+    // Mirror into IndexedDB so views render the pending shot immediately.
+    const rollId = entry.payload.roll_id as number
+    if (rollId) {
+      void localStore.putPendingShot(rollId, entry.payload)
+    }
     return entry
   }
 
@@ -79,6 +90,10 @@ export function useOfflineQueue() {
         try {
           await $fetch('/api/shots', { method: 'POST', body: item.payload })
           remove(item.client_id)
+          // We deliberately leave the IndexedDB pending row in place until the
+          // next list refresh — `localStore.replaceShotsForRoll` matches on
+          // client_id and replaces it with the server-confirmed row, so the
+          // user never sees the shot momentarily disappear.
         } catch (err: any) {
           // 4xx = bad data, drop it so we don't loop forever.
           // 5xx / network errors = leave for next attempt.

@@ -4,12 +4,13 @@ A lightweight, offline-friendly web app for logging film-camera shots in the mom
 
 ## Stack
 
-- **Nuxt 3** + Vue 3 (TypeScript)
+- **Nuxt 4** + Vue 3 (TypeScript)
 - **Bun** as package manager / script runner
-- **Nuxt UI 3** (Tailwind 4)
+- **Nuxt UI 4** (Tailwind 4)
 - **NuxtHub / Cloudflare D1** for data — accessed exclusively via server API routes
+- **IndexedDB** (via `idb`) for the on-device read cache — see "Offline data" below
 - **nuxt-auth-utils** for session cookies + scrypt password hashing
-- **@vite-pwa/nuxt** for the installable PWA shell + offline cache
+- **@vite-pwa/nuxt** for the installable PWA shell + service-worker cache
 - **Vitest** for unit tests, `@nuxt/test-utils` for end-to-end integration tests
 
 ## Architecture rules
@@ -20,9 +21,29 @@ A lightweight, offline-friendly web app for logging film-camera shots in the mom
 - Soft deletes (`deleted_at`) are used everywhere a future sync could otherwise resurrect a tombstoned row.
 - Roll status separates the physical roll (`loaded` / `finished` / `archived`) from development events (`developments` table). The UI label (e.g. "at lab", "developed") is derived in `shared/roll-status.ts` and used identically on server and client.
 
+## Offline data
+
+Three layers, each doing one thing:
+
+1. **PWA shell cache** — `@vite-pwa/nuxt` precaches HTML/CSS/JS so the app loads with no network.
+2. **IndexedDB read mirror** (`app/composables/localStore.ts`) — every successful `/api` response is written into IndexedDB. The `useCachedRolls` / `useCachedRollDetail` / `useCachedCameras` / `useCachedLenses` / `useCachedLabs` composables are cache-first: pages hydrate from IndexedDB on mount and then revalidate in the background. With no network, they keep the cached data on screen instead of empty defaults.
+3. **Offline write queue** (`app/composables/useOfflineQueue.ts`) — every shot logged is given a UUID `client_id` and:
+   - written to `localStorage` (durable across reloads),
+   - written to IndexedDB tagged `_pending: true` (so the roll detail page shows it immediately, with a "Pending sync" badge),
+   - replayed to `POST /api/shots` when the `online` event fires. The server is idempotent on `(user_id, client_id)`, so retries are safe. On the next list refresh, `replaceShotsForRoll` swaps the pending placeholder for the server-confirmed row matched by `client_id` — no duplicate, no flicker, no gap.
+
+The local cache is wiped on logout so a different user signing in on the same device doesn't see the previous account's data.
+
 ## Layout
 
 ```
+app/                   # Nuxt 4 app sources
+  pages/               # Mobile-first Vue pages
+  layouts/             # default (with bottom nav) + auth
+  middleware/          # auth.global.ts
+  composables/         # useApi, useGeolocation, useOfflineQueue, useCached*, localStore
+  assets/              # CSS
+  app.vue, app.config.ts
 server/
   api/                 # Every DB operation lives here
     auth/              # register, login, logout, me, change-password
@@ -36,13 +57,9 @@ server/
   utils/               # db wrapper, schemas (zod), validation helpers, recovery code
 shared/                # Pure code shared between server and client
   roll-status.ts       # deriveRollState(...)
-composables/           # useApi, useGeolocation, useOfflineQueue
-pages/                 # Mobile-first Vue pages
-layouts/               # default (with bottom nav) + auth
-middleware/            # auth.global.ts
 types/                 # API response shapes
 tests/
-  unit/                # Vitest, plain Node — schemas, recovery codes, derived state, queue
+  unit/                # Vitest, plain Node — schemas, derived state, queue, local store
   integration/         # @nuxt/test-utils — boots the app, exercises real /api endpoints
 ```
 

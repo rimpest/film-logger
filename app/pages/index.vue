@@ -1,14 +1,12 @@
 <script setup lang="ts">
-import type { RollListItem } from '~~/types/models'
 import { deriveRollState, DERIVED_STATE_LABELS, DERIVED_STATE_COLORS } from '~~/shared/roll-status'
 
-const { data: rolls, refresh } = await useFetch<RollListItem[]>('/api/rolls', {
-  query: { status: 'active' },
-  default: () => [],
-})
+// Cache-first: hydrates from IndexedDB on mount, then revalidates from /api.
+// Offline → silently keeps cached data, no flicker.
+const { data: rolls, refresh } = useCachedRolls('active')
 
-const loaded = computed(() => (rolls.value ?? []).filter(r => r.status === 'loaded'))
-const finished = computed(() => (rolls.value ?? []).filter(r => r.status === 'finished'))
+const loaded = computed(() => rolls.value.filter(r => r.status === 'loaded'))
+const finished = computed(() => rolls.value.filter(r => r.status === 'finished'))
 const { online, queue, flush } = useOfflineQueue()
 
 watch(online, (val) => { if (val) void flush().then(refresh) })

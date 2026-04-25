@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import type { RollListItem } from '~~/types/models'
 import { deriveRollState, DERIVED_STATE_LABELS, DERIVED_STATE_COLORS, type DerivedRollState } from '~~/shared/roll-status'
 
 const filter = ref<'all' | DerivedRollState>('all')
-const { data: rolls } = await useFetch<RollListItem[]>('/api/rolls', { default: () => [] })
+const { data: rolls } = useCachedRolls()
 
 const filtered = computed(() => {
-  const list = rolls.value ?? []
+  const list = rolls.value
   if (filter.value === 'all') return list
   return list.filter(r =>
     deriveRollState({

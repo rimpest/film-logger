@@ -31,6 +31,7 @@ async function changePassword() {
 async function logout() {
   await $fetch('/api/auth/logout', { method: 'POST' })
   await clear()
+  if (import.meta.client) await localStore.clear()
   await navigateTo('/login')
 }
 </script>

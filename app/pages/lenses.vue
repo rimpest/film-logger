@@ -2,8 +2,8 @@
 import type { Camera, Lens } from '~~/types/models'
 
 const api = useApi()
-const { data: lenses, refresh } = await useFetch<Lens[]>('/api/lenses', { default: () => [] })
-const { data: cameras } = await useFetch<Camera[]>('/api/cameras', { default: () => [] })
+const { data: lenses, refresh } = useCachedLenses()
+const { data: cameras } = useCachedCameras()
 
 interface Edit extends Partial<Lens> { id?: number, camera_ids?: number[] }
 const editing = ref<Edit | null>(null)

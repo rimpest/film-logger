@@ -1,8 +1,6 @@
 <script setup lang="ts">
-import type { Camera } from '~~/types/models'
-
 const api = useApi()
-const { data: cameras } = await useFetch<Camera[]>('/api/cameras', { default: () => [] })
+const { data: cameras } = useCachedCameras()
 
 const cameraId = ref<number | null>(null)
 const filmStock = ref('')

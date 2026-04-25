@@ -2,7 +2,7 @@
 import type { Camera } from '~~/types/models'
 
 const api = useApi()
-const { data: cameras, refresh } = await useFetch<Camera[]>('/api/cameras', { default: () => [] })
+const { data: cameras, refresh } = useCachedCameras()
 
 const editing = ref<Partial<Camera> & { id?: number } | null>(null)
 const FORMATS = [

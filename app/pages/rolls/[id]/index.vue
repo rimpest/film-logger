@@ -1,24 +1,20 @@
 <script setup lang="ts">
-import type { Development, RollDetailRoll, Shot } from '~~/types/models'
 import { deriveRollState, DERIVED_STATE_LABELS, DERIVED_STATE_COLORS } from '~~/shared/roll-status'
+import type { Development } from '~~/types/models'
 
 const route = useRoute()
 const api = useApi()
 const id = Number(route.params.id)
 
-interface Detail {
-  roll: RollDetailRoll
-  shots: Shot[]
-  developments: Development[]
-}
-
-const { data, refresh } = await useFetch<Detail>(`/api/rolls/${id}`, { default: () => null })
+// Cache-first roll detail. The shots ref includes any offline-queued shots
+// (`_pending: true`) so the user sees them immediately after logging.
+const { roll, shots, developments, refresh } = useCachedRollDetail(id)
 
 const derived = computed(() => {
-  if (!data.value?.roll) return 'loaded' as const
-  const latest = data.value.developments[0]
+  if (!roll.value) return 'loaded' as const
+  const latest = developments.value[0] as { status?: string } | undefined
   return deriveRollState({
-    status: data.value.roll.status,
+    status: roll.value.status,
     latest_development_status: latest?.status ?? null,
   })
 })
@@ -49,16 +45,18 @@ async function markDelivered(devId: number) {
   await api.patch(`/api/developments/${devId}`, { status: 'delivered' })
   await refresh()
 }
+
+const devs = computed(() => developments.value as Development[])
 </script>
 
 <template>
-  <div v-if="data" class="flex flex-col gap-6">
+  <div v-if="roll" class="flex flex-col gap-6">
     <header class="flex flex-col gap-3">
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">
-          <h1 class="text-xl font-semibold truncate">{{ data.roll.film_stock }}</h1>
+          <h1 class="text-xl font-semibold truncate">{{ roll.film_stock }}</h1>
           <p class="text-sm text-muted truncate">
-            {{ data.roll.camera_name }} · ISO {{ data.roll.iso }} · {{ data.shots.length }} / {{ data.roll.frame_count }} shots
+            {{ (roll as any).camera_name }} · ISO {{ roll.iso }} · {{ shots.length }} / {{ roll.frame_count }} shots
           </p>
         </div>
         <UBadge
@@ -69,35 +67,35 @@ async function markDelivered(devId: number) {
       </div>
       <div class="flex flex-wrap gap-2">
         <UButton
-          v-if="data.roll.status === 'loaded'"
-          :to="`/log?roll=${data.roll.id}`"
+          v-if="roll.status === 'loaded'"
+          :to="`/log?roll=${roll.id}`"
           icon="i-lucide-plus"
           label="Log a shot"
           color="primary"
         />
         <UButton
-          v-if="data.roll.status === 'loaded'"
+          v-if="roll.status === 'loaded'"
           icon="i-lucide-check"
           label="Mark finished"
           variant="outline"
           @click="markFinished"
         />
         <UButton
-          v-if="data.roll.status === 'finished'"
+          v-if="roll.status === 'finished'"
           :to="`/rolls/${id}/send`"
           icon="i-lucide-send"
           label="Send to lab"
           color="primary"
         />
         <UButton
-          v-if="data.roll.status === 'finished'"
+          v-if="roll.status === 'finished'"
           icon="i-lucide-undo-2"
           variant="outline"
           label="Re-open"
           @click="reopen"
         />
         <UButton
-          v-if="data.roll.status !== 'archived'"
+          v-if="roll.status !== 'archived'"
           icon="i-lucide-archive"
           variant="ghost"
           color="neutral"
@@ -109,11 +107,14 @@ async function markDelivered(devId: number) {
 
     <section>
       <h2 class="text-sm font-medium text-muted uppercase tracking-wide mb-2">Shots</h2>
-      <div v-if="data.shots.length" class="flex flex-col gap-2">
+      <div v-if="shots.length" class="flex flex-col gap-2">
         <div
-          v-for="s in data.shots"
-          :key="s.id"
-          class="rounded-lg border border-default bg-elevated/40 p-3"
+          v-for="s in shots"
+          :key="s.id || s.client_id || s.taken_at"
+          class="rounded-lg border p-3 transition"
+          :class="(s as any)._pending
+            ? 'border-warning/40 bg-warning/5'
+            : 'border-default bg-elevated/40'"
         >
           <div class="flex items-start justify-between gap-3">
             <div class="min-w-0">
@@ -124,9 +125,17 @@ async function markDelivered(devId: number) {
                 <span class="text-sm">
                   {{ new Date(s.taken_at).toLocaleString() }}
                 </span>
+                <UBadge
+                  v-if="(s as any)._pending"
+                  size="xs"
+                  color="warning"
+                  variant="subtle"
+                  icon="i-lucide-cloud-upload"
+                  label="Pending sync"
+                />
               </div>
               <div class="text-sm mt-1">
-                <span v-if="s.lens_name">{{ s.lens_name }}</span>
+                <span v-if="(s as any).lens_name">{{ (s as any).lens_name }}</span>
                 <span v-if="s.aperture"> · f/{{ s.aperture }}</span>
                 <span v-if="s.shutter_speed"> · {{ s.shutter_speed }}s</span>
               </div>
@@ -138,6 +147,7 @@ async function markDelivered(devId: number) {
               <div v-if="s.notes" class="text-sm text-muted mt-1">{{ s.notes }}</div>
             </div>
             <UButton
+              v-if="!(s as any)._pending"
               icon="i-lucide-trash-2"
               variant="ghost"
               color="error"
@@ -156,7 +166,7 @@ async function markDelivered(devId: number) {
       <div class="flex items-center justify-between mb-2">
         <h2 class="text-sm font-medium text-muted uppercase tracking-wide">Development history</h2>
         <UButton
-          v-if="data.roll.status !== 'loaded'"
+          v-if="roll.status !== 'loaded'"
           :to="`/rolls/${id}/send`"
           icon="i-lucide-plus"
           variant="ghost"
@@ -164,9 +174,9 @@ async function markDelivered(devId: number) {
           label="Add"
         />
       </div>
-      <div v-if="data.developments.length" class="flex flex-col gap-2">
+      <div v-if="devs.length" class="flex flex-col gap-2">
         <div
-          v-for="d in data.developments"
+          v-for="d in devs"
           :key="d.id"
           class="rounded-lg border border-default bg-elevated/40 p-3"
         >
@@ -209,4 +219,7 @@ async function markDelivered(devId: number) {
       </UCard>
     </section>
   </div>
+  <UCard v-else>
+    <div class="text-center text-sm text-muted py-6">Loading…</div>
+  </UCard>
 </template>
