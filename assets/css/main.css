@@ -1,0 +1,29 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+:root {
+  --ui-primary: var(--ui-color-primary-500);
+}
+
+html, body {
+  height: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: var(--ui-bg);
+  color: var(--ui-text);
+}
+
+/* Make Nuxt UI inputs comfortable on mobile. */
+input, select, textarea, button {
+  font-size: 16px;
+}
+
+/* Bottom-safe-area padding for iOS PWA. */
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
