@@ -4,6 +4,7 @@ import type { Lens } from '~~/types/models'
 const api = useApi()
 const toast = useToast()
 const route = useRoute()
+const { t } = useI18n()
 const { online, queue, enqueueShot, flush } = useOfflineQueue()
 
 // Cache-first: even with no signal we render the loaded rolls / cameras / lenses
@@ -69,9 +70,9 @@ async function captureLocation() {
     lat.value = loc.latitude
     lng.value = loc.longitude
     accuracy.value = loc.accuracy_m
-    toast.add({ title: 'Location captured', color: 'success' })
+    toast.add({ title: t('log.locationCapturedToast'), color: 'success' })
   } else if (geo.error.value) {
-    toast.add({ title: geo.error.value, color: 'error' })
+    toast.add({ title: t('log.locationCouldNotGet'), color: 'error' })
   }
 }
 
@@ -79,11 +80,29 @@ const submitting = ref(false)
 
 async function submit() {
   if (!selectedRollId.value) {
-    toast.add({ title: 'Pick a roll first', color: 'error' })
+    toast.add({ title: t('log.pickRollFirst'), color: 'error' })
+    return
+  }
+  // Encrypt every sensitive field before it leaves the browser. The server
+  // only ever sees the ciphertext blobs, so a DB dump exposes nothing.
+  const key = await loadKey()
+  if (!key) {
+    toast.add({ title: t('errors.requestFailed'), color: 'error' })
+    await navigateTo('/login?next=' + encodeURIComponent('/log'))
     return
   }
   submitting.value = true
   try {
+    const hasLocation =
+      lat.value != null || lng.value != null || locationText.value
+    const locationPlain = hasLocation
+      ? {
+          text: locationText.value || null,
+          latitude: lat.value,
+          longitude: lng.value,
+          accuracy_m: accuracy.value,
+        }
+      : null
     const payload = {
       client_id: crypto.randomUUID(),
       roll_id: selectedRollId.value,
@@ -91,24 +110,21 @@ async function submit() {
       lens_id: lensId.value,
       aperture: aperture.value,
       shutter_speed: shutter.value || null,
-      location_text: locationText.value || null,
-      latitude: lat.value,
-      longitude: lng.value,
-      location_accuracy_m: accuracy.value,
-      notes: notes.value || null,
+      location_encrypted: locationPlain ? await encryptJson(key, locationPlain) : null,
+      notes_encrypted: notes.value ? await encryptString(key, notes.value) : null,
     }
     if (online.value) {
       try {
         await api.post('/api/shots', payload)
-        toast.add({ title: 'Shot logged', color: 'success' })
+        toast.add({ title: t('log.saved'), color: 'success' })
       } catch {
         // Network failed mid-request: queue and continue.
         enqueueShot(payload)
-        toast.add({ title: 'Saved locally — will sync', color: 'warning' })
+        toast.add({ title: t('log.savedLocally'), color: 'warning' })
       }
     } else {
       enqueueShot(payload)
-      toast.add({ title: 'Saved locally — will sync', color: 'warning' })
+      toast.add({ title: t('log.savedLocally'), color: 'warning' })
     }
 
     // Reset transient fields, keep the camera/lens/aperture as sane defaults for the next frame.
@@ -134,33 +150,33 @@ const cameraNameById = computed(() => {
 <template>
   <div class="flex flex-col gap-4">
     <header class="flex items-center justify-between">
-      <h1 class="text-xl font-semibold">Log a shot</h1>
-      <UBadge v-if="!online" color="warning" variant="subtle" label="Offline" icon="i-lucide-wifi-off" />
-      <UBadge v-else-if="queue.length" color="info" variant="subtle" :label="`${queue.length} pending`" />
+      <h1 class="text-xl font-semibold">{{ t('log.title') }}</h1>
+      <UBadge v-if="!online" color="warning" variant="subtle" :label="t('home.offline')" icon="i-lucide-wifi-off" />
+      <UBadge v-else-if="queue.length" color="info" variant="subtle" :label="t('home.pendingSync', { count: queue.length }, queue.length)" />
     </header>
 
     <UCard v-if="!rolls?.length">
       <div class="text-center py-6">
-        <p class="font-medium">No loaded rolls.</p>
-        <p class="text-sm text-muted mb-3">Load a roll into one of your cameras first.</p>
-        <UButton to="/rolls/new" label="Load a roll" color="primary" />
+        <p class="font-medium">{{ t('log.noLoadedRolls') }}</p>
+        <p class="text-sm text-muted mb-3">{{ t('log.noLoadedRollsHelp') }}</p>
+        <UButton to="/rolls/new" :label="t('log.loadARoll')" color="primary" />
       </div>
     </UCard>
 
     <form v-else class="flex flex-col gap-4" @submit.prevent="submit">
-      <UFormField label="Roll">
+      <UFormField :label="t('log.roll')">
         <USelect
           v-model="selectedRollId"
           :items="(rolls ?? []).map(r => ({
-            label: `${r.film_stock} — ${cameraNameById.get(r.camera_id) ?? 'Camera'}`,
+            label: `${r.film_stock} — ${cameraNameById.get(r.camera_id) ?? t('rollNew.camera')}`,
             value: r.id,
           }))"
-          placeholder="Select a roll"
+          :placeholder="t('log.selectRoll')"
           class="w-full"
         />
       </UFormField>
 
-      <UFormField label="Lens">
+      <UFormField :label="t('log.lens')">
         <div class="flex flex-col gap-2">
           <USelect
             v-model="lensId"
@@ -168,19 +184,19 @@ const cameraNameById = computed(() => {
               label: `${l.focal_length_mm}mm — ${l.name}`,
               value: l.id,
             }))"
-            placeholder="Select a lens"
+            :placeholder="t('log.selectLens')"
             class="w-full"
           />
           <UCheckbox
             v-if="lensesForCamera.length"
             v-model="showAllLenses"
-            label="Show all lenses (not just tagged for this camera)"
+            :label="t('log.showAllLenses')"
           />
         </div>
       </UFormField>
 
       <div class="grid grid-cols-2 gap-3">
-        <UFormField label="Aperture (f/)">
+        <UFormField :label="t('log.aperture')">
           <div class="flex flex-wrap gap-1">
             <UButton
               v-for="a in APERTURES"
@@ -195,47 +211,49 @@ const cameraNameById = computed(() => {
             v-model.number="aperture"
             type="number"
             step="0.1"
-            placeholder="Custom"
+            :placeholder="t('log.apertureCustom')"
             class="mt-2"
           />
         </UFormField>
-        <UFormField label="Shutter speed">
+        <UFormField :label="t('log.shutterSpeed')">
           <USelect
             v-model="shutter"
             :items="SHUTTERS.map(s => ({ label: s, value: s }))"
-            placeholder="Select"
+            :placeholder="t('log.shutterSelect')"
             class="w-full"
           />
           <UInput
             v-model="shutter"
-            placeholder="Custom (e.g. 1/45)"
+            :placeholder="t('log.shutterCustom')"
             class="mt-2"
           />
         </UFormField>
       </div>
 
-      <UFormField label="Location">
+      <UFormField :label="t('log.location')">
         <div class="flex flex-col gap-2">
           <UButton
             type="button"
             icon="i-lucide-map-pin"
             :loading="geo.loading.value"
-            :label="lat != null ? `Captured (±${accuracy ? accuracy.toFixed(0) : '?'}m)` : 'Use my location'"
+            :label="lat != null
+              ? t('log.locationCaptured', { accuracy: accuracy ? accuracy.toFixed(0) : '?' })
+              : t('log.useMyLocation')"
             variant="outline"
             @click="captureLocation"
           />
           <UInput
             v-model="locationText"
-            placeholder="Or type a place name"
+            :placeholder="t('log.locationTextPlaceholder')"
           />
         </div>
       </UFormField>
 
-      <UFormField label="Notes">
+      <UFormField :label="t('log.notes')">
         <UTextarea
           v-model="notes"
           :rows="3"
-          placeholder="Subject, light, what you were after..."
+          :placeholder="t('log.notesPlaceholder')"
           class="w-full"
         />
       </UFormField>
@@ -245,7 +263,7 @@ const cameraNameById = computed(() => {
         :loading="submitting"
         block
         size="lg"
-        label="Save shot"
+        :label="t('log.save')"
         icon="i-lucide-check"
       />
     </form>

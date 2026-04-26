@@ -19,7 +19,8 @@ export default defineEventHandler(async (event) => {
   const result = await db()
     .prepare(
       `INSERT INTO cameras
-        (user_id, client_id, name, format, has_interchangeable_back, notes, created_at, updated_at)
+        (user_id, client_id, name, format, has_interchangeable_back, notes_encrypted,
+         created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(
@@ -28,7 +29,7 @@ export default defineEventHandler(async (event) => {
       input.name,
       input.format,
       input.has_interchangeable_back ? 1 : 0,
-      input.notes ?? null,
+      input.notes_encrypted ?? null,
       now,
       now,
     )

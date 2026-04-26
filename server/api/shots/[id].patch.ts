@@ -14,11 +14,8 @@ export default defineEventHandler(async (event) => {
   if (input.lens_id !== undefined) set('lens_id', input.lens_id)
   if (input.aperture !== undefined) set('aperture', input.aperture)
   if (input.shutter_speed !== undefined) set('shutter_speed', input.shutter_speed)
-  if (input.location_text !== undefined) set('location_text', input.location_text)
-  if (input.latitude !== undefined) set('latitude', input.latitude)
-  if (input.longitude !== undefined) set('longitude', input.longitude)
-  if (input.location_accuracy_m !== undefined) set('location_accuracy_m', input.location_accuracy_m)
-  if (input.notes !== undefined) set('notes', input.notes)
+  if (input.location_encrypted !== undefined) set('location_encrypted', input.location_encrypted)
+  if (input.notes_encrypted !== undefined) set('notes_encrypted', input.notes_encrypted)
 
   if (!fields.length) return { ok: true }
   fields.push('updated_at = ?')

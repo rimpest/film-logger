@@ -11,7 +11,7 @@ export default defineEventHandler(async (event) => {
   if (input.address !== undefined) { fields.push('address = ?'); values.push(input.address) }
   if (input.phone !== undefined) { fields.push('phone = ?'); values.push(input.phone) }
   if (input.website !== undefined) { fields.push('website = ?'); values.push(input.website) }
-  if (input.notes !== undefined) { fields.push('notes = ?'); values.push(input.notes) }
+  if (input.notes_encrypted !== undefined) { fields.push('notes_encrypted = ?'); values.push(input.notes_encrypted) }
 
   if (!fields.length) return { ok: true }
   fields.push('updated_at = ?')

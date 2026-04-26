@@ -6,7 +6,7 @@ export interface Camera {
   name: string
   format: '135' | '120' | '4x5' | '8x10' | 'other'
   has_interchangeable_back: number
-  notes: string | null
+  notes_encrypted: string | null
   created_at: string
   updated_at: string
 }
@@ -19,7 +19,7 @@ export interface Lens {
   max_aperture: number | null
   min_aperture: number | null
   mount: string | null
-  notes: string | null
+  notes_encrypted: string | null
   created_at: string
   updated_at: string
   camera_ids?: number[]
@@ -32,7 +32,7 @@ export interface Lab {
   address: string | null
   phone: string | null
   website: string | null
-  notes: string | null
+  notes_encrypted: string | null
   created_at: string
   updated_at: string
 }
@@ -48,7 +48,7 @@ export interface Roll {
   status: 'loaded' | 'finished' | 'archived'
   loaded_at: string
   finished_at: string | null
-  notes: string | null
+  notes_encrypted: string | null
   created_at: string
   updated_at: string
 }
@@ -57,6 +57,7 @@ export interface RollListItem extends Roll {
   camera_name: string
   shot_count: number
   latest_development_status: string | null
+  latest_development_lab_id: number | null
 }
 
 export interface RollDetailRoll extends Roll {
@@ -64,6 +65,7 @@ export interface RollDetailRoll extends Roll {
   camera_format: string
 }
 
+/** A shot as the SERVER sees it — both notes and location are opaque blobs. */
 export interface Shot {
   id: number
   client_id: string | null
@@ -74,11 +76,16 @@ export interface Shot {
   lens_name?: string | null
   aperture: number | null
   shutter_speed: string | null
-  location_text: string | null
+  notes_encrypted: string | null
+  location_encrypted: string | null
+}
+
+/** Client-side decrypted plaintext for a shot's location blob. */
+export interface ShotLocationPlain {
+  text: string | null
   latitude: number | null
   longitude: number | null
-  location_accuracy_m: number | null
-  notes: string | null
+  accuracy_m: number | null
 }
 
 export interface Development {
@@ -96,7 +103,7 @@ export interface Development {
   scan_format: string | null
   cost: number | null
   currency: string | null
-  notes: string | null
+  notes_encrypted: string | null
   created_at: string
   updated_at: string
 }

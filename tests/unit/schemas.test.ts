@@ -99,10 +99,28 @@ describe('shotSchema', () => {
   it('accepts a barebones shot (everything but roll_id is optional)', () => {
     expect(shotSchema.safeParse(base).success).toBe(true)
   })
-  it('validates lat/lng ranges', () => {
-    expect(shotSchema.safeParse({ ...base, latitude: 91 }).success).toBe(false)
-    expect(shotSchema.safeParse({ ...base, longitude: 200 }).success).toBe(false)
-    expect(shotSchema.safeParse({ ...base, latitude: 25, longitude: -100 }).success).toBe(true)
+  it('rejects unknown plaintext fields (we never accept them anymore)', () => {
+    // These keys used to be valid; making sure they are now silently dropped
+    // (zod default = strip) and don't survive into the parsed object.
+    const parsed = shotSchema.safeParse({ ...base, latitude: 91, notes: 'plain' })
+    expect(parsed.success).toBe(true)
+    if (parsed.success) {
+      expect((parsed.data as any).latitude).toBeUndefined()
+      expect((parsed.data as any).notes).toBeUndefined()
+    }
+  })
+  it('accepts opaque ciphertext blobs for notes/location', () => {
+    expect(shotSchema.safeParse({
+      ...base,
+      notes_encrypted: 'AAECAwQFBgcICQoLDA0ODxA=',
+      location_encrypted: 'AAECAwQFBgcICQoLDA0ODxE=',
+    }).success).toBe(true)
+  })
+  it('rejects ciphertext blobs over the size limit', () => {
+    expect(shotSchema.safeParse({
+      ...base,
+      notes_encrypted: 'a'.repeat(20_000),
+    }).success).toBe(false)
   })
   it('rejects malformed taken_at', () => {
     expect(shotSchema.safeParse({ ...base, taken_at: 'yesterday' }).success).toBe(false)

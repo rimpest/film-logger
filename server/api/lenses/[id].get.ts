@@ -4,8 +4,8 @@ export default defineEventHandler(async (event) => {
 
   const lens = await db()
     .prepare(
-      `SELECT id, client_id, name, focal_length_mm, max_aperture, min_aperture, mount, notes,
-              created_at, updated_at
+      `SELECT id, client_id, name, focal_length_mm, max_aperture, min_aperture, mount,
+              notes_encrypted, created_at, updated_at
        FROM lenses
        WHERE id = ? AND user_id = ? AND deleted_at IS NULL`,
     )

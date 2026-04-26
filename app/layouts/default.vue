@@ -1,21 +1,25 @@
 <script setup lang="ts">
 const { user, clear } = useUserSession()
 const route = useRoute()
+const { t } = useI18n()
 
 const items = computed(() => [
-  { label: 'Home', icon: 'i-lucide-home', to: '/' },
-  { label: 'Rolls', icon: 'i-lucide-film', to: '/rolls' },
-  { label: 'Log', icon: 'i-lucide-plus-circle', to: '/log' },
-  { label: 'Gear', icon: 'i-lucide-camera', to: '/cameras' },
-  { label: 'Labs', icon: 'i-lucide-flask-conical', to: '/labs' },
+  { label: t('nav.home'), icon: 'i-lucide-home', to: '/' },
+  { label: t('nav.rolls'), icon: 'i-lucide-film', to: '/rolls' },
+  { label: t('nav.log'), icon: 'i-lucide-plus-circle', to: '/log' },
+  { label: t('nav.gear'), icon: 'i-lucide-camera', to: '/cameras' },
+  { label: t('nav.labs'), icon: 'i-lucide-flask-conical', to: '/labs' },
 ])
 
 async function logout() {
   await $fetch('/api/auth/logout', { method: 'POST' })
   await clear()
-  // Wipe the local cache so a different user signing in doesn't see the
-  // previous account's rolls/cameras/etc.
-  if (import.meta.client) await localStore.clear()
+  // Wipe the local cache + encryption key so a different user signing in
+  // can't read the previous account's data.
+  if (import.meta.client) {
+    await localStore.clear()
+    await clearKey()
+  }
   await navigateTo('/login')
 }
 </script>
@@ -25,15 +29,15 @@ async function logout() {
     <header class="sticky top-0 z-20 border-b border-default bg-default/80 backdrop-blur safe-top">
       <div class="mx-auto max-w-3xl flex items-center justify-between px-4 py-3">
         <NuxtLink to="/" class="font-semibold tracking-tight text-lg">
-          Film Logger
+          {{ t('appName') }}
         </NuxtLink>
         <div class="flex items-center gap-2">
           <UDropdownMenu
             v-if="user"
             :items="[
               [{ label: user.username as string, type: 'label' }],
-              [{ label: 'Settings', icon: 'i-lucide-settings', to: '/settings' }],
-              [{ label: 'Sign out', icon: 'i-lucide-log-out', onSelect: logout }],
+              [{ label: t('settings.title'), icon: 'i-lucide-settings', to: '/settings' }],
+              [{ label: t('auth.signOut'), icon: 'i-lucide-log-out', onSelect: logout }],
             ]"
           >
             <UButton
@@ -47,7 +51,7 @@ async function logout() {
           <UButton
             v-else
             to="/login"
-            label="Sign in"
+            :label="t('auth.signIn')"
             color="primary"
             size="sm"
           />

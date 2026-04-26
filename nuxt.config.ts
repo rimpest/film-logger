@@ -1,14 +1,48 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: '2025-01-01',
-  devtools: { enabled: true },
+  // Devtools off in dev because Vite re-discovers their chunks on first load
+  // and forces a full reload — that breaks Playwright's hydration assumptions
+  // in slow environments. Re-enable locally if needed.
+  devtools: { enabled: false },
+
+  vite: {
+    optimizeDeps: {
+      // Pre-bundle these so Vite doesn't trigger a server-restart-style reload
+      // the first time an unauth user navigates to a page that imports them.
+      include: ['idb'],
+    },
+  },
 
   modules: [
     '@nuxt/ui',
     '@nuxthub/core',
     'nuxt-auth-utils',
     '@vite-pwa/nuxt',
+    '@nuxtjs/i18n',
   ],
+
+  i18n: {
+    // Strategy: no URL prefix — locale is decided by cookie / Accept-Language,
+    // not by a `/es/` segment. Keeps PWA + offline behavior simple.
+    strategy: 'no_prefix',
+    defaultLocale: 'en',
+    locales: [
+      { code: 'en', language: 'en-US', name: 'English', file: 'en.json' },
+      { code: 'es', language: 'es-MX', name: 'Español', file: 'es.json' },
+    ],
+    bundle: {
+      // Recommended for Nuxt 4 — split locale chunks at build time.
+      optimizeTranslationDirective: false,
+    },
+    detectBrowserLanguage: {
+      useCookie: true,
+      cookieKey: 'i18n_redirected',
+      redirectOn: 'root',
+      alwaysRedirect: false,
+      fallbackLocale: 'en',
+    },
+  },
 
   css: ['~/assets/css/main.css'],
 

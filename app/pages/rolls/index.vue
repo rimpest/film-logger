@@ -1,35 +1,44 @@
 <script setup lang="ts">
-import { deriveRollState, DERIVED_STATE_LABELS, DERIVED_STATE_COLORS, type DerivedRollState } from '~~/shared/roll-status'
+import {
+  ALL_DERIVED_STATES,
+  DERIVED_STATE_COLORS,
+  deriveRollState,
+  type DerivedRollState,
+} from '~~/shared/roll-status'
 
+const { t, locale } = useI18n()
 const filter = ref<'all' | DerivedRollState>('all')
 const { data: rolls } = useCachedRolls()
+
+function deriveFor(r: { status: string, latest_development_status: string | null, latest_development_lab_id: number | null }) {
+  return deriveRollState({
+    status: r.status as any,
+    latest_development_status: r.latest_development_status as any,
+    latest_development_lab_id: r.latest_development_lab_id,
+  })
+}
 
 const filtered = computed(() => {
   const list = rolls.value
   if (filter.value === 'all') return list
-  return list.filter(r =>
-    deriveRollState({
-      status: r.status,
-      latest_development_status: r.latest_development_status as any,
-    }) === filter.value,
-  )
+  return list.filter(r => deriveFor(r) === filter.value)
 })
 
-const filterOptions: Array<{ label: string, value: 'all' | DerivedRollState }> = [
-  { label: 'All', value: 'all' },
-  { label: 'Loaded', value: 'loaded' },
-  { label: 'Finished', value: 'finished' },
-  { label: 'At lab', value: 'at_lab' },
-  { label: 'Developed', value: 'developed' },
-  { label: 'Archived', value: 'archived' },
-]
+const filterOptions = computed(() => [
+  { label: t('rolls.filter.all'), value: 'all' as const },
+  ...ALL_DERIVED_STATES.map(s => ({ label: t(`rollStatus.${s}`), value: s })),
+])
+
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString(locale.value)
+}
 </script>
 
 <template>
   <div class="flex flex-col gap-4">
     <header class="flex items-center justify-between gap-3">
-      <h1 class="text-xl font-semibold">Rolls</h1>
-      <UButton to="/rolls/new" icon="i-lucide-plus" label="New roll" color="primary" />
+      <h1 class="text-xl font-semibold">{{ t('rolls.title') }}</h1>
+      <UButton to="/rolls/new" icon="i-lucide-plus" :label="t('rolls.newRoll')" color="primary" />
     </header>
 
     <USelect
@@ -49,23 +58,23 @@ const filterOptions: Array<{ label: string, value: 'all' | DerivedRollState }> =
           <div class="min-w-0">
             <div class="font-medium truncate">{{ r.film_stock }}</div>
             <div class="text-sm text-muted truncate">
-              {{ r.camera_name }} · ISO {{ r.iso }} · {{ r.shot_count }} / {{ r.frame_count }} shots
+              {{ r.camera_name }} · ISO {{ r.iso }} · {{ r.shot_count }} / {{ r.frame_count }} {{ t('home.shotsShort') }}
             </div>
             <div class="text-xs text-muted mt-1">
-              Loaded {{ new Date(r.loaded_at).toLocaleDateString() }}
+              {{ t('rolls.loadedAt', { date: fmtDate(r.loaded_at) }) }}
             </div>
           </div>
           <UBadge
-            :color="DERIVED_STATE_COLORS[deriveRollState({ status: r.status, latest_development_status: r.latest_development_status as any })]"
+            :color="DERIVED_STATE_COLORS[deriveFor(r)]"
             variant="subtle"
-            :label="DERIVED_STATE_LABELS[deriveRollState({ status: r.status, latest_development_status: r.latest_development_status as any })]"
+            :label="t(`rollStatus.${deriveFor(r)}`)"
           />
         </div>
       </NuxtLink>
     </div>
 
     <UCard v-else>
-      <div class="text-center py-6 text-muted">No rolls match this filter.</div>
+      <div class="text-center py-6 text-muted">{{ t('rolls.noneMatchFilter') }}</div>
     </UCard>
   </div>
 </template>

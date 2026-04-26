@@ -49,11 +49,8 @@ describe('localStore — pending shot replacement', () => {
         lens_id: null,
         aperture: 5.6,
         shutter_speed: '1/125',
-        location_text: null,
-        latitude: null,
-        longitude: null,
-        location_accuracy_m: null,
-        notes: null,
+        location_encrypted: null,
+        notes_encrypted: null,
       } as never,
     ])
 

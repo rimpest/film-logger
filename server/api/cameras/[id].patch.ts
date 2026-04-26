@@ -13,7 +13,7 @@ export default defineEventHandler(async (event) => {
     fields.push('has_interchangeable_back = ?')
     values.push(input.has_interchangeable_back ? 1 : 0)
   }
-  if (input.notes !== undefined) { fields.push('notes = ?'); values.push(input.notes) }
+  if (input.notes_encrypted !== undefined) { fields.push('notes_encrypted = ?'); values.push(input.notes_encrypted) }
 
   if (fields.length === 0) {
     return { ok: true }

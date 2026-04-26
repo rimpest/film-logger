@@ -31,6 +31,10 @@ export default defineConfig({
     baseURL: `http://127.0.0.1:${PORT}`,
     headless: true,
     viewport: { width: 390, height: 844 }, // iPhone 12-ish, mobile-first
+    // Force English so the existing screenshots and text-based selectors
+    // stay stable. The app supports Spanish too; see the i18n test below.
+    locale: 'en-US',
+    extraHTTPHeaders: { 'accept-language': 'en-US,en;q=0.9' },
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },

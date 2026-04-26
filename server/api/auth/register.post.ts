@@ -1,5 +1,6 @@
 import { loginSchema } from '~~/server/utils/schemas'
 import { generateRecoveryCode } from '~~/server/utils/passwords'
+import { generateKeySalt } from '~~/server/utils/keysalt'
 
 export default defineEventHandler(async (event) => {
   const { username, password } = await readValidatedJson(event, loginSchema)
@@ -15,12 +16,15 @@ export default defineEventHandler(async (event) => {
   const passwordHash = await hashPassword(password)
   const recoveryCode = generateRecoveryCode()
   const recoveryHash = await hashPassword(recoveryCode)
+  // Per-user salt for client-side encryption key derivation.
+  // Returned ONCE here; afterwards retrieved from /api/auth/me.
+  const keySalt = generateKeySalt()
 
   const result = await db()
     .prepare(
-      'INSERT INTO users (username, password_hash, recovery_code_hash, created_at) VALUES (?, ?, ?, ?)',
+      'INSERT INTO users (username, password_hash, recovery_code_hash, key_salt, created_at) VALUES (?, ?, ?, ?, ?)',
     )
-    .bind(username, passwordHash, recoveryHash, nowIso())
+    .bind(username, passwordHash, recoveryHash, keySalt, nowIso())
     .run()
 
   const userId = Number(result.meta.last_row_id)
@@ -28,6 +32,7 @@ export default defineEventHandler(async (event) => {
     user: { id: userId, username },
   })
 
-  // Recovery code returned ONCE; client must show it to the user and instruct them to save it.
-  return { id: userId, username, recovery_code: recoveryCode }
+  // Recovery code returned ONCE; client must show it to the user.
+  // `key_salt` is needed for the client to derive its encryption key.
+  return { id: userId, username, recovery_code: recoveryCode, key_salt: keySalt }
 })

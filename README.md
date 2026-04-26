@@ -21,6 +21,42 @@ A lightweight, offline-friendly web app for logging film-camera shots in the mom
 - Soft deletes (`deleted_at`) are used everywhere a future sync could otherwise resurrect a tombstoned row.
 - Roll status separates the physical roll (`loaded` / `finished` / `archived`) from development events (`developments` table). The UI label (e.g. "at lab", "developed") is derived in `shared/roll-status.ts` and used identically on server and client.
 
+## Security / zero-knowledge encryption
+
+Sensitive fields — every `notes` field across the app, plus a shot's location
+(text, lat, lng, accuracy) — are encrypted client-side. The server is
+deliberately key-less: a database dump exposes nothing readable.
+
+- **Key derivation**: `PBKDF2-SHA256(password, users.key_salt, 200 000 iters)`
+  → AES-GCM 256-bit key. The salt is per-user and minted once at register.
+- **Storage**: derived key lives in IndexedDB as a *non-extractable*
+  `CryptoKey`, so even DevTools can't pull the raw bytes — JS in the same
+  origin can only use it for further encrypt/decrypt calls. The key never
+  leaves the browser.
+- **Wire format**: `base64(IV || AES-GCM ciphertext+tag)`. IV is 12 random
+  bytes per encryption (no nonce reuse).
+- **Schema**: `users.key_salt` plus per-table `*_encrypted TEXT` columns.
+  All previous plaintext columns (`notes`, `location_text`, `latitude`,
+  `longitude`, `location_accuracy_m`) are dropped — see migration
+  `0002_zero_knowledge.sql`.
+- **Logout** wipes the IndexedDB cache + the derived key.
+- **Rate limiting**: `/api/auth/login` is bucketed by `(username, UTC hour)`
+  and rejects after 10 failures per hour. Cleared on a successful login.
+
+What the server still sees (and can't help seeing):
+- Camera / lens / lab / film-stock names. These are catalog data, not personal.
+- Shot timestamps, aperture, shutter speed, frame number, lens ID.
+- Roll ISO, frame count, lifecycle status, drop-off / delivery dates, cost.
+
+Open caveats:
+- A malicious client could of course encrypt junk and we wouldn't notice —
+  the server doesn't validate ciphertext content, only its shape and size cap.
+- If you forget your password, your encrypted fields are gone. The recovery
+  code minted at signup proves account ownership but does **not** restore the
+  encryption key (that would require deriving from the new password, but the
+  old ciphertexts were keyed off the old derivation). v2 work: optional
+  recovery-code-wrapped key copy, opt-in.
+
 ## Offline data
 
 Three layers, each doing one thing:

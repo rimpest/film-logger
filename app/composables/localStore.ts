@@ -115,6 +115,9 @@ async function replaceShotsForRoll(rollId: number, rows: Shot[]) {
 async function putPendingShot(rollId: number, payload: Record<string, unknown>) {
   const db = await getDB()
   const clientId = payload.client_id as string
+  // Note that location/notes are stored as ciphertext blobs already — the page
+  // encrypts them before calling enqueueShot. So this row is zero-knowledge
+  // even when sitting in IndexedDB.
   const row: PendingShot = {
     id: 0 as unknown as number, // placeholder; replaced when server assigns
     client_id: clientId,
@@ -124,11 +127,8 @@ async function putPendingShot(rollId: number, payload: Record<string, unknown>) 
     lens_id: (payload.lens_id as number | null) ?? null,
     aperture: (payload.aperture as number | null) ?? null,
     shutter_speed: (payload.shutter_speed as string | null) ?? null,
-    location_text: (payload.location_text as string | null) ?? null,
-    latitude: (payload.latitude as number | null) ?? null,
-    longitude: (payload.longitude as number | null) ?? null,
-    location_accuracy_m: (payload.location_accuracy_m as number | null) ?? null,
-    notes: (payload.notes as string | null) ?? null,
+    location_encrypted: (payload.location_encrypted as string | null) ?? null,
+    notes_encrypted: (payload.notes_encrypted as string | null) ?? null,
     _pending: true,
     _client_id: clientId,
   }

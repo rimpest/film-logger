@@ -22,7 +22,7 @@ export default defineEventHandler(async (event) => {
     .prepare(
       `SELECT
          r.id, r.client_id, r.camera_id, r.film_stock, r.iso, r.box_speed, r.frame_count,
-         r.status, r.loaded_at, r.finished_at, r.notes, r.created_at, r.updated_at,
+         r.status, r.loaded_at, r.finished_at, r.notes_encrypted, r.created_at, r.updated_at,
          c.name AS camera_name,
          (
            SELECT COUNT(*) FROM shots s
@@ -33,7 +33,13 @@ export default defineEventHandler(async (event) => {
            WHERE d.roll_id = r.id AND d.deleted_at IS NULL
            ORDER BY datetime(COALESCE(d.dropped_off_at, d.created_at)) DESC, d.id DESC
            LIMIT 1
-         ) AS latest_development_status
+         ) AS latest_development_status,
+         (
+           SELECT d.lab_id FROM developments d
+           WHERE d.roll_id = r.id AND d.deleted_at IS NULL
+           ORDER BY datetime(COALESCE(d.dropped_off_at, d.created_at)) DESC, d.id DESC
+           LIMIT 1
+         ) AS latest_development_lab_id
        FROM rolls r
        INNER JOIN cameras c ON c.id = r.camera_id
        WHERE ${where}

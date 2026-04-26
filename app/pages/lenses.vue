@@ -1,27 +1,42 @@
 <script setup lang="ts">
-import type { Camera, Lens } from '~~/types/models'
+import type { Lens } from '~~/types/models'
 
 const api = useApi()
 const { data: lenses, refresh } = useCachedLenses()
 const { data: cameras } = useCachedCameras()
+const { t } = useI18n()
 
-interface Edit extends Partial<Lens> { id?: number, camera_ids?: number[] }
+interface Edit extends Partial<Lens> {
+  id?: number
+  camera_ids?: number[]
+  /** Plaintext notes the user is typing — encrypted on save. */
+  notes?: string | null
+}
 const editing = ref<Edit | null>(null)
 
 function startNew() {
-  editing.value = { name: '', focal_length_mm: 50, camera_ids: [] }
+  editing.value = { name: '', focal_length_mm: 50, camera_ids: [], notes: '' }
 }
 
 async function startEdit(l: Lens) {
   // Fetch detail to get tagged cameras.
   const detail = await api.get<Lens & { camera_ids: number[] }>(`/api/lenses/${l.id}`)
-  editing.value = { ...detail }
+  const key = await loadKey()
+  let plain: string | null = null
+  if (key && detail.notes_encrypted) {
+    try { plain = await decryptText(key, detail.notes_encrypted) } catch {}
+  }
+  editing.value = { ...detail, notes: plain ?? '' }
 }
 
 function cancel() { editing.value = null }
 
 async function save() {
   if (!editing.value?.name || !editing.value?.focal_length_mm) return
+  const key = await loadKey()
+  const notesCipher = editing.value.notes && key
+    ? await encryptString(key, editing.value.notes)
+    : null
   const payload = {
     client_id: editing.value.client_id ?? crypto.randomUUID(),
     name: editing.value.name,
@@ -29,7 +44,7 @@ async function save() {
     max_aperture: editing.value.max_aperture ?? null,
     min_aperture: editing.value.min_aperture ?? null,
     mount: editing.value.mount ?? null,
-    notes: editing.value.notes ?? null,
+    notes_encrypted: notesCipher,
     camera_ids: editing.value.camera_ids ?? [],
   }
   if (editing.value.id) {
@@ -42,7 +57,7 @@ async function save() {
 }
 
 async function remove(l: Lens) {
-  if (!confirm(`Delete ${l.name}?`)) return
+  if (!confirm(t('lenses.deleteConfirm', { name: l.name }))) return
   await api.del(`/api/lenses/${l.id}`)
   await refresh()
 }
@@ -51,33 +66,33 @@ async function remove(l: Lens) {
 <template>
   <div class="flex flex-col gap-4">
     <header class="flex items-center justify-between">
-      <h1 class="text-xl font-semibold">Lenses</h1>
-      <UButton icon="i-lucide-plus" label="Add lens" color="primary" @click="startNew" />
+      <h1 class="text-xl font-semibold">{{ t('lenses.title') }}</h1>
+      <UButton icon="i-lucide-plus" :label="t('lenses.addLens')" color="primary" @click="startNew" />
     </header>
 
     <UCard v-if="editing">
       <template #header>
-        <div class="text-sm font-medium">{{ editing.id ? 'Edit lens' : 'New lens' }}</div>
+        <div class="text-sm font-medium">{{ editing.id ? t('lenses.editLens') : t('lenses.newLens') }}</div>
       </template>
       <form class="flex flex-col gap-3" @submit.prevent="save">
-        <UFormField label="Name" required>
-          <UInput v-model="editing.name" placeholder="e.g. Zeiss Planar 80mm f/2.8" class="w-full" />
+        <UFormField :label="t('lenses.name')" required>
+          <UInput v-model="editing.name" :placeholder="t('lenses.namePlaceholder')" class="w-full" />
         </UFormField>
         <div class="grid grid-cols-3 gap-3">
-          <UFormField label="Focal length (mm)" required>
+          <UFormField :label="t('lenses.focalLengthMm')" required>
             <UInput v-model.number="editing.focal_length_mm" type="number" min="1" />
           </UFormField>
-          <UFormField label="Max aperture (f/)">
+          <UFormField :label="t('lenses.maxAperture')">
             <UInput v-model.number="editing.max_aperture" type="number" step="0.1" />
           </UFormField>
-          <UFormField label="Min aperture (f/)">
+          <UFormField :label="t('lenses.minAperture')">
             <UInput v-model.number="editing.min_aperture" type="number" step="0.1" />
           </UFormField>
         </div>
-        <UFormField label="Mount">
-          <UInput v-model="editing.mount" placeholder="e.g. V-system" class="w-full" />
+        <UFormField :label="t('lenses.mount')">
+          <UInput v-model="editing.mount" :placeholder="t('lenses.mountPlaceholder')" class="w-full" />
         </UFormField>
-        <UFormField label="Fits cameras" v-if="cameras?.length">
+        <UFormField v-if="cameras?.length" :label="t('lenses.fitsCameras')">
           <div class="flex flex-wrap gap-2">
             <UCheckbox
               v-for="c in cameras"
@@ -93,12 +108,12 @@ async function remove(l: Lens) {
             />
           </div>
         </UFormField>
-        <UFormField label="Notes">
+        <UFormField :label="t('lenses.notes')">
           <UTextarea v-model="editing.notes" :rows="2" class="w-full" />
         </UFormField>
         <div class="flex gap-2">
-          <UButton type="submit" color="primary" label="Save" />
-          <UButton type="button" variant="outline" label="Cancel" @click="cancel" />
+          <UButton type="submit" color="primary" :label="t('common.save')" />
+          <UButton type="button" variant="outline" :label="t('common.cancel')" @click="cancel" />
         </div>
       </form>
     </UCard>
@@ -124,7 +139,7 @@ async function remove(l: Lens) {
       </div>
     </div>
     <UCard v-else-if="!editing">
-      <div class="text-center py-6 text-muted">No lenses yet.</div>
+      <div class="text-center py-6 text-muted">{{ t('lenses.empty') }}</div>
     </UCard>
   </div>
 </template>

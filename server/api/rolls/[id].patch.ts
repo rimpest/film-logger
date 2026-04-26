@@ -17,8 +17,8 @@ export default defineEventHandler(async (event) => {
   if (input.finished_at !== undefined) {
     fields.push('finished_at = ?'); values.push(input.finished_at)
   }
-  if (input.notes !== undefined) {
-    fields.push('notes = ?'); values.push(input.notes)
+  if (input.notes_encrypted !== undefined) {
+    fields.push('notes_encrypted = ?'); values.push(input.notes_encrypted)
   }
   if (!fields.length) return { ok: true }
 

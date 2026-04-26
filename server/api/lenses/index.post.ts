@@ -18,8 +18,8 @@ export default defineEventHandler(async (event) => {
   const result = await db()
     .prepare(
       `INSERT INTO lenses
-        (user_id, client_id, name, focal_length_mm, max_aperture, min_aperture, mount, notes,
-         created_at, updated_at)
+        (user_id, client_id, name, focal_length_mm, max_aperture, min_aperture, mount,
+         notes_encrypted, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(
@@ -30,7 +30,7 @@ export default defineEventHandler(async (event) => {
       input.max_aperture ?? null,
       input.min_aperture ?? null,
       input.mount ?? null,
-      input.notes ?? null,
+      input.notes_encrypted ?? null,
       now,
       now,
     )
