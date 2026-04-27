@@ -1,8 +1,8 @@
 /**
- * Global route guard. Public pages: /login, /register.
+ * Global route guard. Public pages: /login, /register, /privacy.
  * Anything else requires a session.
  */
-const PUBLIC_PATHS = new Set(['/login', '/register'])
+const PUBLIC_PATHS = new Set(['/login', '/register', '/privacy'])
 
 export default defineNuxtRouteMiddleware(async (to) => {
   const { loggedIn } = useUserSession()

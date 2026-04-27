@@ -8,6 +8,7 @@ const items = computed(() => [
   { label: t('nav.rolls'), icon: 'i-lucide-film', to: '/rolls' },
   { label: t('nav.log'), icon: 'i-lucide-plus-circle', to: '/log' },
   { label: t('nav.gear'), icon: 'i-lucide-camera', to: '/cameras' },
+  { label: t('nav.lenses'), icon: 'i-lucide-aperture', to: '/lenses' },
   { label: t('nav.labs'), icon: 'i-lucide-flask-conical', to: '/labs' },
 ])
 
@@ -63,11 +64,17 @@ async function logout() {
       <slot />
     </main>
 
+    <footer class="mx-auto w-full max-w-3xl px-4 py-4 text-center text-xs text-muted">
+      <NuxtLink to="/privacy" class="hover:text-default underline-offset-2 hover:underline">
+        {{ t('footer.privacy') }}
+      </NuxtLink>
+    </footer>
+
     <nav
       v-if="user"
       class="sm:hidden fixed bottom-0 inset-x-0 z-30 border-t border-default bg-default/95 backdrop-blur safe-bottom"
     >
-      <ul class="grid grid-cols-5">
+      <ul class="grid grid-cols-6">
         <li v-for="item in items" :key="item.to">
           <NuxtLink
             :to="item.to"

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { defaultFrameCountFor, framePresetsFor } from '~~/shared/frame-presets'
+
 const api = useApi()
 const { data: cameras } = useCachedCameras()
 const { t } = useI18n()
@@ -10,20 +12,44 @@ const boxSpeed = ref<number | null>(null)
 const frameCount = ref<number | null>(36)
 const notes = ref('')
 const submitting = ref(false)
+const showAllFormats = ref(false)
 
 watch(cameras, (val) => {
   if (val?.length && cameraId.value == null) cameraId.value = val[0].id
 }, { immediate: true })
 
-const FRAME_PRESETS = computed(() => [
-  { label: t('rollNew.framePreset.f36'), value: 36 },
-  { label: t('rollNew.framePreset.f24'), value: 24 },
-  { label: t('rollNew.framePreset.f16'), value: 16 },
-  { label: t('rollNew.framePreset.f12'), value: 12 },
-  { label: t('rollNew.framePreset.f10'), value: 10 },
-  { label: t('rollNew.framePreset.f8'), value: 8 },
-  { label: t('rollNew.framePreset.f1'), value: 1 },
-])
+const selectedCamera = computed(() =>
+  cameras.value?.find(c => c.id === cameraId.value) ?? null,
+)
+
+// Keep the displayed frame-count chips relevant to the chosen camera. The
+// "show all" toggle is the escape hatch for half-shot rolls or odd backs.
+const visibleFrameValues = computed(() =>
+  showAllFormats.value
+    ? framePresetsFor('other')
+    : framePresetsFor(selectedCamera.value?.format),
+)
+
+const FRAME_LABELS: Record<number, string> = {
+  36: t('rollNew.framePreset.f36'),
+  24: t('rollNew.framePreset.f24'),
+  16: t('rollNew.framePreset.f16'),
+  12: t('rollNew.framePreset.f12'),
+  10: t('rollNew.framePreset.f10'),
+  8: t('rollNew.framePreset.f8'),
+  1: t('rollNew.framePreset.f1'),
+}
+
+const visibleFramePresets = computed(() =>
+  visibleFrameValues.value.map(v => ({ label: FRAME_LABELS[v] ?? String(v), value: v })),
+)
+
+// Reset frame count to the format's default whenever the user picks a different
+// camera. Predictable beats trying to preserve a value that probably doesn't
+// fit the new format (you don't load 36-exp into a 4×5).
+watch(() => selectedCamera.value?.format, (format) => {
+  if (format) frameCount.value = defaultFrameCountFor(format)
+}, { immediate: true })
 
 async function submit() {
   if (!cameraId.value || !filmStock.value || !iso.value || !frameCount.value) return
@@ -82,8 +108,13 @@ async function submit() {
       <UFormField :label="t('rollNew.frames')" required>
         <USelect
           v-model="frameCount"
-          :items="FRAME_PRESETS"
+          :items="visibleFramePresets"
           class="w-full"
+        />
+        <UCheckbox
+          v-model="showAllFormats"
+          :label="t('rollNew.showAllFormats')"
+          class="mt-2"
         />
         <UInput v-model.number="frameCount" type="number" min="1" max="999" class="mt-2" />
       </UFormField>

@@ -19,6 +19,7 @@
     "rolls": "Rollos",
     "log": "Registrar",
     "gear": "Equipo",
+    "lenses": "Objetivos",
     "labs": "Labs"
   },
   "auth": {
@@ -92,7 +93,11 @@
     "frameMarker": "#{n}",
     "stops": "paso | pasos",
     "droppedOffOn": "Entregado el {date}",
-    "deliveredOn": "Recibido el {date}"
+    "deliveredOn": "Recibido el {date}",
+    "today": "Hoy",
+    "yesterday": "Ayer",
+    "openInMap": "Ver en el mapa",
+    "shotAt": "a las {time}"
   },
   "rollNew": {
     "title": "Cargar un rollo",
@@ -104,6 +109,7 @@
     "shootingIso": "ISO de exposición",
     "boxSpeed": "ISO nominal",
     "frames": "Cuadros",
+    "showAllFormats": "Mostrar todos los formatos",
     "notes": "Notas",
     "loadRoll": "Cargar rollo",
     "framePreset": {
@@ -123,19 +129,40 @@
     "loadARoll": "Cargar un rollo",
     "roll": "Rollo",
     "selectRoll": "Selecciona un rollo",
+    "frame": "Cuadro",
+    "frameHint": "Sugerencia: #{n} de {total}. Escribe otro número para saltar o sobrescribir.",
+    "frameDuplicateWarning": "El cuadro #{n} ya está usado en este rollo — al guardar quedarán duplicados.",
     "lens": "Objetivo",
     "selectLens": "Selecciona un objetivo",
+    "noLensesYet": "Aún no tienes objetivos",
+    "noLensesHint": "Toca + para agregar tu primer objetivo.",
+    "addLens": "Agregar objetivo",
+    "lensQuickCreate": "Agregar objetivo rápido",
+    "lensAdded": "Objetivo agregado",
     "showAllLenses": "Mostrar todos los objetivos (no solo los asociados a esta cámara)",
     "aperture": "Apertura (f/)",
     "apertureCustom": "Personalizada",
+    "showAllApertures": "Mostrar pasos poco comunes",
     "shutterSpeed": "Velocidad de obturación",
     "shutterSelect": "Seleccionar",
     "shutterCustom": "Personalizada (ej. 1/45)",
     "location": "Ubicación",
     "useMyLocation": "Usar mi ubicación",
+    "pickOnMap": "Elegir en el mapa",
+    "useThisSpot": "Usar este punto",
+    "mapNeedsInternet": "El mapa necesita conexión — vuelve a intentarlo en línea o escribe el nombre del lugar.",
+    "mapAttribution": "© Colaboradores de OpenStreetMap",
+    "searchPlaces": "Buscar",
+    "searchPlaceholder": "Buscar nombre del lugar…",
+    "searchNoResults": "No se encontraron lugares.",
+    "currentLocationTooltip": "Donde dijiste que estás",
+    "currentLocationLegend": "Punto azul: tu ubicación capturada",
     "locationCaptured": "Capturada (±{accuracy}m)",
     "locationCapturedToast": "Ubicación capturada",
     "locationCouldNotGet": "No se pudo obtener la ubicación",
+    "locationPermissionDenied": "Permiso de ubicación denegado. Usa el mapa o escribe el nombre del lugar.",
+    "locationUnavailable": "Tu navegador no pudo obtener la ubicación. Usa el mapa.",
+    "locationTimeout": "La ubicación tardó demasiado. Reintenta o usa el mapa.",
     "locationTextPlaceholder": "O escribe el nombre del lugar",
     "notes": "Notas",
     "notesPlaceholder": "Sujeto, luz, qué buscabas…",
@@ -245,7 +272,15 @@
     "delivered": "Recibido",
     "cancelled": "Cancelado"
   },
+  "shotEdit": {
+    "title": "Editar toma",
+    "saved": "Toma actualizada",
+    "deleted": "Toma eliminada"
+  },
   "errors": {
     "requestFailed": "Falló la solicitud"
+  },
+  "footer": {
+    "privacy": "Aviso de Privacidad"
   }
 }

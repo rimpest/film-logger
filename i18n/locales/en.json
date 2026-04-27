@@ -19,6 +19,7 @@
     "rolls": "Rolls",
     "log": "Log",
     "gear": "Gear",
+    "lenses": "Lenses",
     "labs": "Labs"
   },
   "auth": {
@@ -92,7 +93,11 @@
     "frameMarker": "#{n}",
     "stops": "stop | stops",
     "droppedOffOn": "Dropped off {date}",
-    "deliveredOn": "Delivered {date}"
+    "deliveredOn": "Delivered {date}",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "openInMap": "Open in map",
+    "shotAt": "at {time}"
   },
   "rollNew": {
     "title": "Load a roll",
@@ -104,6 +109,7 @@
     "shootingIso": "Shooting ISO",
     "boxSpeed": "Box speed",
     "frames": "Frames",
+    "showAllFormats": "Show all formats",
     "notes": "Notes",
     "loadRoll": "Load roll",
     "framePreset": {
@@ -123,19 +129,40 @@
     "loadARoll": "Load a roll",
     "roll": "Roll",
     "selectRoll": "Select a roll",
+    "frame": "Frame",
+    "frameHint": "Suggesting #{n} of {total}. Type a different number to skip or override.",
+    "frameDuplicateWarning": "Frame #{n} is already used on this roll — saving will create a duplicate.",
     "lens": "Lens",
     "selectLens": "Select a lens",
+    "noLensesYet": "No lenses yet",
+    "noLensesHint": "Tap + to add your first lens.",
+    "addLens": "Add lens",
+    "lensQuickCreate": "Quick add lens",
+    "lensAdded": "Lens added",
     "showAllLenses": "Show all lenses (not just tagged for this camera)",
     "aperture": "Aperture (f/)",
     "apertureCustom": "Custom",
+    "showAllApertures": "Show uncommon stops",
     "shutterSpeed": "Shutter speed",
     "shutterSelect": "Select",
     "shutterCustom": "Custom (e.g. 1/45)",
     "location": "Location",
     "useMyLocation": "Use my location",
+    "pickOnMap": "Pick on map",
+    "useThisSpot": "Use this spot",
+    "mapNeedsInternet": "The map needs internet — try again online, or just type a place name.",
+    "mapAttribution": "© OpenStreetMap contributors",
+    "searchPlaces": "Search",
+    "searchPlaceholder": "Search a place name…",
+    "searchNoResults": "No matching places.",
+    "currentLocationTooltip": "Where you said you are",
+    "currentLocationLegend": "Blue dot: your captured location",
     "locationCaptured": "Captured (±{accuracy}m)",
     "locationCapturedToast": "Location captured",
     "locationCouldNotGet": "Could not get location",
+    "locationPermissionDenied": "Location permission denied. Try the map picker or type a place name.",
+    "locationUnavailable": "Your browser couldn't resolve a location. Try the map picker.",
+    "locationTimeout": "Location request timed out. Try again or use the map picker.",
     "locationTextPlaceholder": "Or type a place name",
     "notes": "Notes",
     "notesPlaceholder": "Subject, light, what you were after…",
@@ -245,7 +272,15 @@
     "delivered": "Delivered",
     "cancelled": "Cancelled"
   },
+  "shotEdit": {
+    "title": "Edit shot",
+    "saved": "Shot updated",
+    "deleted": "Shot deleted"
+  },
   "errors": {
     "requestFailed": "Request failed"
+  },
+  "footer": {
+    "privacy": "Privacy Notice"
   }
 }
