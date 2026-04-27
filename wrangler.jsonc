@@ -1,0 +1,31 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "film-logger",
+  "main": "./dist/server/index.mjs",
+  "compatibility_date": "2025-04-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Static assets emitted by `nuxt build` under the cloudflare_module preset.
+  // The binding name `ASSETS` is what Nitro's cloudflare_module wrapper expects
+  // for serving the prerendered/SPA bundle.
+  "assets": {
+    "directory": "./dist/public",
+    "binding": "ASSETS"
+  },
+
+  // D1 binding name MUST be `DB` — that's what NuxtHub's `hubDatabase()` reads
+  // from `event.context.cloudflare.env`.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "film-logger",
+      "database_id": "0a9cd12a-c1c5-45e8-a5f6-ffc766a0c616",
+      "migrations_dir": "./server/database/migrations"
+    }
+  ],
+
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
+}
