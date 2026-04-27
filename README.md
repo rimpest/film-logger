@@ -4,12 +4,13 @@ A lightweight, offline-friendly web app for logging film-camera shots in the mom
 
 ## Stack
 
-- **Nuxt 3** + Vue 3 (TypeScript)
+- **Nuxt 4** + Vue 3 (TypeScript)
 - **Bun** as package manager / script runner
-- **Nuxt UI 3** (Tailwind 4)
+- **Nuxt UI 4** (Tailwind 4)
 - **NuxtHub / Cloudflare D1** for data — accessed exclusively via server API routes
+- **IndexedDB** (via `idb`) for the on-device read cache — see "Offline data" below
 - **nuxt-auth-utils** for session cookies + scrypt password hashing
-- **@vite-pwa/nuxt** for the installable PWA shell + offline cache
+- **@vite-pwa/nuxt** for the installable PWA shell + service-worker cache
 - **Vitest** for unit tests, `@nuxt/test-utils` for end-to-end integration tests
 
 ## Architecture rules
@@ -20,9 +21,65 @@ A lightweight, offline-friendly web app for logging film-camera shots in the mom
 - Soft deletes (`deleted_at`) are used everywhere a future sync could otherwise resurrect a tombstoned row.
 - Roll status separates the physical roll (`loaded` / `finished` / `archived`) from development events (`developments` table). The UI label (e.g. "at lab", "developed") is derived in `shared/roll-status.ts` and used identically on server and client.
 
+## Security / zero-knowledge encryption
+
+Sensitive fields — every `notes` field across the app, plus a shot's location
+(text, lat, lng, accuracy) — are encrypted client-side. The server is
+deliberately key-less: a database dump exposes nothing readable.
+
+- **Key derivation**: `PBKDF2-SHA256(password, users.key_salt, 200 000 iters)`
+  → AES-GCM 256-bit key. The salt is per-user and minted once at register.
+- **Storage**: derived key lives in IndexedDB as a *non-extractable*
+  `CryptoKey`, so even DevTools can't pull the raw bytes — JS in the same
+  origin can only use it for further encrypt/decrypt calls. The key never
+  leaves the browser.
+- **Wire format**: `base64(IV || AES-GCM ciphertext+tag)`. IV is 12 random
+  bytes per encryption (no nonce reuse).
+- **Schema**: `users.key_salt` plus per-table `*_encrypted TEXT` columns.
+  All previous plaintext columns (`notes`, `location_text`, `latitude`,
+  `longitude`, `location_accuracy_m`) are dropped — see migration
+  `0002_zero_knowledge.sql`.
+- **Logout** wipes the IndexedDB cache + the derived key.
+- **Rate limiting**: `/api/auth/login` is bucketed by `(username, UTC hour)`
+  and rejects after 10 failures per hour. Cleared on a successful login.
+
+What the server still sees (and can't help seeing):
+- Camera / lens / lab / film-stock names. These are catalog data, not personal.
+- Shot timestamps, aperture, shutter speed, frame number, lens ID.
+- Roll ISO, frame count, lifecycle status, drop-off / delivery dates, cost.
+
+Open caveats:
+- A malicious client could of course encrypt junk and we wouldn't notice —
+  the server doesn't validate ciphertext content, only its shape and size cap.
+- If you forget your password, your encrypted fields are gone. The recovery
+  code minted at signup proves account ownership but does **not** restore the
+  encryption key (that would require deriving from the new password, but the
+  old ciphertexts were keyed off the old derivation). v2 work: optional
+  recovery-code-wrapped key copy, opt-in.
+
+## Offline data
+
+Three layers, each doing one thing:
+
+1. **PWA shell cache** — `@vite-pwa/nuxt` precaches HTML/CSS/JS so the app loads with no network.
+2. **IndexedDB read mirror** (`app/composables/localStore.ts`) — every successful `/api` response is written into IndexedDB. The `useCachedRolls` / `useCachedRollDetail` / `useCachedCameras` / `useCachedLenses` / `useCachedLabs` composables are cache-first: pages hydrate from IndexedDB on mount and then revalidate in the background. With no network, they keep the cached data on screen instead of empty defaults.
+3. **Offline write queue** (`app/composables/useOfflineQueue.ts`) — every shot logged is given a UUID `client_id` and:
+   - written to `localStorage` (durable across reloads),
+   - written to IndexedDB tagged `_pending: true` (so the roll detail page shows it immediately, with a "Pending sync" badge),
+   - replayed to `POST /api/shots` when the `online` event fires. The server is idempotent on `(user_id, client_id)`, so retries are safe. On the next list refresh, `replaceShotsForRoll` swaps the pending placeholder for the server-confirmed row matched by `client_id` — no duplicate, no flicker, no gap.
+
+The local cache is wiped on logout so a different user signing in on the same device doesn't see the previous account's data.
+
 ## Layout
 
 ```
+app/                   # Nuxt 4 app sources
+  pages/               # Mobile-first Vue pages
+  layouts/             # default (with bottom nav) + auth
+  middleware/          # auth.global.ts
+  composables/         # useApi, useGeolocation, useOfflineQueue, useCached*, localStore
+  assets/              # CSS
+  app.vue, app.config.ts
 server/
   api/                 # Every DB operation lives here
     auth/              # register, login, logout, me, change-password
@@ -36,13 +93,9 @@ server/
   utils/               # db wrapper, schemas (zod), validation helpers, recovery code
 shared/                # Pure code shared between server and client
   roll-status.ts       # deriveRollState(...)
-composables/           # useApi, useGeolocation, useOfflineQueue
-pages/                 # Mobile-first Vue pages
-layouts/               # default (with bottom nav) + auth
-middleware/            # auth.global.ts
 types/                 # API response shapes
 tests/
-  unit/                # Vitest, plain Node — schemas, recovery codes, derived state, queue
+  unit/                # Vitest, plain Node — schemas, derived state, queue, local store
   integration/         # @nuxt/test-utils — boots the app, exercises real /api endpoints
 ```
 
@@ -61,9 +114,12 @@ NuxtHub automatically creates a local SQLite-backed D1 binding and runs the migr
 ```bash
 bun run test               # unit tests — fast, no Nuxt boot
 bun run test:integration   # full happy-path against a real Nuxt server + local D1
+bun run e2e                # Playwright: real Chromium, full flow, captures screenshots
 ```
 
 The integration test exercises: register → me → camera CRUD → lens CRUD with camera tagging → roll create → idempotent shot logging → lab create → mark finished → development drop-off → derived status check → unauthenticated rejection → logout.
+
+The E2E test (`tests/e2e/full-flow.spec.ts`) drives a real Chromium through the same flow, plus the actual UI: clicking through register / camera / lens / roll / shot / mark-finished / lab / send-to-lab / log out. Screenshots from each step are committed under `tests/e2e/screenshots/` so reviewers can see the rendered app without running it. The test waits on Vue hydration before every interaction (the dev server lazy-loads chunks, and `fill()` before hydration silently no-ops on the v-model).
 
 ## Deploying
 

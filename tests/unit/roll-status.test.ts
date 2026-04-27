@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
-  deriveRollState,
-  DERIVED_STATE_LABELS,
+  ALL_DERIVED_STATES,
   DERIVED_STATE_COLORS,
+  deriveRollState,
 } from '../../shared/roll-status'
 
 describe('deriveRollState', () => {
@@ -26,16 +26,65 @@ describe('deriveRollState', () => {
     expect(deriveRollState({ status: 'finished', latest_development_status: 'cancelled' })).toBe('finished')
   })
 
-  it('maps active development states to user-facing labels', () => {
-    expect(deriveRollState({ status: 'finished', latest_development_status: 'dropped_off' })).toBe('at_lab')
-    expect(deriveRollState({ status: 'finished', latest_development_status: 'in_progress' })).toBe('in_progress')
-    expect(deriveRollState({ status: 'finished', latest_development_status: 'delivered' })).toBe('developed')
+  describe('lab vs self-developed disambiguation', () => {
+    it('maps dropped_off + lab_id to "at_lab"', () => {
+      expect(deriveRollState({
+        status: 'finished',
+        latest_development_status: 'dropped_off',
+        latest_development_lab_id: 7,
+      })).toBe('at_lab')
+    })
+
+    it('maps dropped_off + null lab_id (self-developed) to "developing"', () => {
+      expect(deriveRollState({
+        status: 'finished',
+        latest_development_status: 'dropped_off',
+        latest_development_lab_id: null,
+      })).toBe('developing')
+    })
+
+    it('maps in_progress + lab_id to "in_progress"', () => {
+      expect(deriveRollState({
+        status: 'finished',
+        latest_development_status: 'in_progress',
+        latest_development_lab_id: 7,
+      })).toBe('in_progress')
+    })
+
+    it('maps in_progress + null lab_id to "developing"', () => {
+      expect(deriveRollState({
+        status: 'finished',
+        latest_development_status: 'in_progress',
+        latest_development_lab_id: null,
+      })).toBe('developing')
+    })
+
+    it('maps delivered to "developed" regardless of lab_id', () => {
+      expect(deriveRollState({
+        status: 'finished',
+        latest_development_status: 'delivered',
+        latest_development_lab_id: null,
+      })).toBe('developed')
+      expect(deriveRollState({
+        status: 'finished',
+        latest_development_status: 'delivered',
+        latest_development_lab_id: 7,
+      })).toBe('developed')
+    })
+
+    it('treats undefined lab_id (no dev row joined yet) as not-self-developed', () => {
+      // When there's a status but lab_id wasn't sent, we can't claim self-dev.
+      // Behaviour: fall through to the at_lab/in_progress branches.
+      expect(deriveRollState({
+        status: 'finished',
+        latest_development_status: 'dropped_off',
+        // latest_development_lab_id omitted
+      })).toBe('at_lab')
+    })
   })
 
-  it('exposes a label and color for every derived state (no missing UI strings)', () => {
-    const states = ['loaded', 'finished', 'at_lab', 'in_progress', 'developed', 'archived'] as const
-    for (const s of states) {
-      expect(DERIVED_STATE_LABELS[s]).toBeTruthy()
+  it('exposes a color for every derived state', () => {
+    for (const s of ALL_DERIVED_STATES) {
       expect(DERIVED_STATE_COLORS[s]).toBeTruthy()
     }
   })

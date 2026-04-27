@@ -38,7 +38,7 @@ export default defineEventHandler(async (event) => {
       `INSERT INTO developments
         (user_id, client_id, roll_id, lab_id, dropped_off_at, expected_ready_at, delivered_at,
          status, process, push_pull_stops, scans_requested, scan_resolution, scan_format, cost,
-         currency, notes, created_at, updated_at)
+         currency, notes_encrypted, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(
@@ -57,7 +57,7 @@ export default defineEventHandler(async (event) => {
       input.scan_format ?? null,
       input.cost ?? null,
       input.currency ?? null,
-      input.notes ?? null,
+      input.notes_encrypted ?? null,
       now,
       now,
     )

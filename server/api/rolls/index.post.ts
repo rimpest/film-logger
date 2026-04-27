@@ -28,7 +28,7 @@ export default defineEventHandler(async (event) => {
     .prepare(
       `INSERT INTO rolls
         (user_id, client_id, camera_id, film_stock, iso, box_speed, frame_count, status,
-         loaded_at, notes, created_at, updated_at)
+         loaded_at, notes_encrypted, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, 'loaded', ?, ?, ?, ?)`,
     )
     .bind(
@@ -40,7 +40,7 @@ export default defineEventHandler(async (event) => {
       input.box_speed ?? null,
       input.frame_count,
       now,
-      input.notes ?? null,
+      input.notes_encrypted ?? null,
       now,
       now,
     )

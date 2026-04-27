@@ -17,7 +17,8 @@ export default defineEventHandler(async (event) => {
 
   const result = await db()
     .prepare(
-      `INSERT INTO labs (user_id, client_id, name, address, phone, website, notes, created_at, updated_at)
+      `INSERT INTO labs
+        (user_id, client_id, name, address, phone, website, notes_encrypted, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(
@@ -27,7 +28,7 @@ export default defineEventHandler(async (event) => {
       input.address ?? null,
       input.phone ?? null,
       input.website ?? null,
-      input.notes ?? null,
+      input.notes_encrypted ?? null,
       now,
       now,
     )

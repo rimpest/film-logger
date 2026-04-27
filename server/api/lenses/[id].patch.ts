@@ -12,7 +12,7 @@ export default defineEventHandler(async (event) => {
   if (input.max_aperture !== undefined) { fields.push('max_aperture = ?'); values.push(input.max_aperture) }
   if (input.min_aperture !== undefined) { fields.push('min_aperture = ?'); values.push(input.min_aperture) }
   if (input.mount !== undefined) { fields.push('mount = ?'); values.push(input.mount) }
-  if (input.notes !== undefined) { fields.push('notes = ?'); values.push(input.notes) }
+  if (input.notes_encrypted !== undefined) { fields.push('notes_encrypted = ?'); values.push(input.notes_encrypted) }
 
   if (fields.length) {
     fields.push('updated_at = ?')

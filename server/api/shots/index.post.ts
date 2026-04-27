@@ -45,8 +45,8 @@ export default defineEventHandler(async (event) => {
     .prepare(
       `INSERT INTO shots
         (user_id, client_id, roll_id, frame_number, taken_at, lens_id, aperture, shutter_speed,
-         location_text, latitude, longitude, location_accuracy_m, notes, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         location_encrypted, notes_encrypted, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(
       userId,
@@ -57,11 +57,8 @@ export default defineEventHandler(async (event) => {
       input.lens_id ?? null,
       input.aperture ?? null,
       input.shutter_speed ?? null,
-      input.location_text ?? null,
-      input.latitude ?? null,
-      input.longitude ?? null,
-      input.location_accuracy_m ?? null,
-      input.notes ?? null,
+      input.location_encrypted ?? null,
+      input.notes_encrypted ?? null,
       now,
       now,
     )

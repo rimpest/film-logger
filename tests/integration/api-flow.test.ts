@@ -55,13 +55,15 @@ async function call<T>(
 }
 
 describe('full user flow', () => {
-  it('registers a new user and returns a recovery code', async () => {
-    const res = await call<{ id: number, recovery_code: string }>('/api/auth/register', {
+  it('registers a new user and returns a recovery code + key_salt', async () => {
+    const res = await call<{ id: number, recovery_code: string, key_salt: string }>('/api/auth/register', {
       method: 'POST',
       body: { username, password },
     })
     expect(res.id).toBeGreaterThan(0)
     expect(res.recovery_code).toMatch(/^[A-Z2-9]{5}-[A-Z2-9]{5}-[A-Z2-9]{5}$/)
+    // key_salt is base64 of 16 bytes → 24 chars, ends in '=='.
+    expect(res.key_salt).toMatch(/^[A-Za-z0-9+/]{22}==$/)
   })
 
   it('authenticated user can fetch /api/auth/me', async () => {
@@ -113,6 +115,14 @@ describe('full user flow', () => {
     rollId = res.id
   })
 
+  // Real ciphertext blobs aren't important for the server-side test —
+  // anything base64-shaped under the size cap is accepted and stored opaquely.
+  // We use distinctive sentinel strings so the negative assertion below
+  // (server didn't store the plaintext) is unambiguous.
+  const fakeNotesCipher = btoa('CIPHERTEXT-NOTES-OPAQUE-BLOB')
+  const fakeLocationCipher = btoa('CIPHERTEXT-LOCATION-OPAQUE-BLOB')
+  const plaintextNote = 'Cerro de la Silla — should never reach the server'
+
   it('logs a shot against that roll, with idempotency on client_id', async () => {
     const client_id = crypto.randomUUID()
     const body = {
@@ -121,19 +131,78 @@ describe('full user flow', () => {
       lens_id: lensId,
       aperture: 5.6,
       shutter_speed: '1/125',
-      latitude: 25.6866,
-      longitude: -100.3161,
-      notes: 'Cerro de la Silla',
+      notes_encrypted: fakeNotesCipher,
+      location_encrypted: fakeLocationCipher,
     }
     const a = await call<{ id: number }>('/api/shots', { method: 'POST', body })
     const b = await call<{ id: number }>('/api/shots', { method: 'POST', body })
     expect(a.id).toBe(b.id) // replayed offline write must not duplicate
   })
 
-  it('roll detail returns the shot we just logged', async () => {
-    const detail = await call<{ shots: Array<{ id: number, lens_name: string }> }>(`/api/rolls/${rollId}`)
+  it('roll detail returns the shot we just logged with ciphertext intact', async () => {
+    const detail = await call<{
+      shots: Array<{
+        id: number, lens_name: string,
+        notes_encrypted: string | null,
+        location_encrypted: string | null,
+      }>
+    }>(`/api/rolls/${rollId}`)
     expect(detail.shots).toHaveLength(1)
     expect(detail.shots[0].lens_name).toBe('Zeiss Planar 80mm f/2.8')
+    expect(detail.shots[0].notes_encrypted).toBe(fakeNotesCipher)
+    expect(detail.shots[0].location_encrypted).toBe(fakeLocationCipher)
+  })
+
+  it('rejects deprecated plaintext fields (server-side enforcement)', async () => {
+    // Even if a malicious client sends `notes`, `latitude`, etc., zod strips
+    // them and they never reach the database. We assert by sending a shot
+    // with plaintext-only fields and confirming the resulting row has no
+    // ciphertext at all.
+    const client_id = crypto.randomUUID()
+    await call('/api/shots', {
+      method: 'POST',
+      body: {
+        client_id,
+        roll_id: rollId,
+        notes: plaintextNote,                 // dropped by schema
+        latitude: 12.34,                      // dropped by schema
+        longitude: 56.78,                     // dropped by schema
+        location_text: 'attacker plaintext',  // dropped by schema
+      },
+    })
+    const detail = await call<{
+      shots: Array<{
+        client_id: string | null
+        notes_encrypted: string | null
+        location_encrypted: string | null
+      }>
+    }>(`/api/rolls/${rollId}`)
+    const malicious = detail.shots.find(s => s.client_id === client_id)
+    expect(malicious).toBeTruthy()
+    expect(malicious!.notes_encrypted).toBeNull()
+    expect(malicious!.location_encrypted).toBeNull()
+    // And nothing on the wire contains the plaintext sentinel.
+    expect(JSON.stringify(detail).includes(plaintextNote)).toBe(false)
+  })
+
+  it('login rate limiter rejects after too many failures', async () => {
+    // Hammer the login endpoint with bad passwords for an unrelated username.
+    const target = `attack_${Math.random().toString(36).slice(2, 8)}`
+    let last = 0
+    for (let i = 0; i < 12; i++) {
+      try {
+        await call('/api/auth/login', {
+          method: 'POST',
+          body: { username: target, password: 'definitely-wrong' },
+        })
+      } catch (err: any) {
+        // Parse status from our `${status} ${statusText}: …` error message.
+        const m = String(err.message).match(/^(\d+)/)
+        if (m) last = Number(m[1])
+      }
+    }
+    // After the 11th attempt we should be locked out → 429.
+    expect(last).toBe(429)
   })
 
   let labId = 0

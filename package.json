@@ -10,13 +10,17 @@
     "typecheck": "nuxt typecheck",
     "test": "vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
-    "test:integration": "vitest run --config vitest.integration.config.ts"
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "e2e": "PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers playwright test"
   },
   "dependencies": {
-    "@nuxt/ui": "^3.0.2",
+    "@nuxt/ui": "^4.0.0",
     "@nuxthub/core": "^0.8.25",
+    "@nuxtjs/i18n": "^10.3.0",
     "@vite-pwa/nuxt": "^0.10.6",
-    "nuxt": "^3.17.7",
+    "idb": "^8.0.3",
+    "leaflet": "^1.9.4",
+    "nuxt": "^4.0.0",
     "nuxt-auth-utils": "^0.5.20",
     "uuid": "^11.0.5",
     "vue": "^3.5.13",
@@ -26,8 +30,11 @@
   "devDependencies": {
     "@iconify-json/lucide": "^1.2.103",
     "@nuxt/test-utils": "^3.15.0",
+    "@playwright/test": "1.56.1",
+    "@types/leaflet": "^1.9.21",
     "@types/uuid": "^10.0.0",
     "@vitest/coverage-v8": "^2.1.8",
+    "fake-indexeddb": "^6.2.5",
     "happy-dom": "^15.11.7",
     "typescript": "^5.7.3",
     "vitest": "^2.1.8",

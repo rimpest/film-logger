@@ -27,7 +27,7 @@ export default defineEventHandler(async (event) => {
   if (input.scan_format !== undefined) set('scan_format', input.scan_format)
   if (input.cost !== undefined) set('cost', input.cost)
   if (input.currency !== undefined) set('currency', input.currency)
-  if (input.notes !== undefined) set('notes', input.notes)
+  if (input.notes_encrypted !== undefined) set('notes_encrypted', input.notes_encrypted)
 
   if (!fields.length) return { ok: true }
   fields.push('updated_at = ?')

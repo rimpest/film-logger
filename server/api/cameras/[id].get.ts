@@ -4,7 +4,8 @@ export default defineEventHandler(async (event) => {
 
   const camera = await db()
     .prepare(
-      `SELECT id, client_id, name, format, has_interchangeable_back, notes, created_at, updated_at
+      `SELECT id, client_id, name, format, has_interchangeable_back, notes_encrypted,
+              created_at, updated_at
        FROM cameras
        WHERE id = ? AND user_id = ? AND deleted_at IS NULL`,
     )
